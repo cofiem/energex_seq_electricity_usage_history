@@ -1,6 +1,3 @@
-# This is a template for a Ruby scraper on morph.io (https://morph.io)
-# including some code snippets below that you should find helpful
-
 require 'scraperwiki'
 require 'mechanize'
 require 'nokogiri'
