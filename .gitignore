@@ -1,2 +1,5 @@
 # Ignore output of scraper
 data.sqlite
+
+# Ignore Rubymine files
+/.idea/

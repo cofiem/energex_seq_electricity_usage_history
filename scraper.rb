@@ -1,25 +1,41 @@
 # This is a template for a Ruby scraper on morph.io (https://morph.io)
 # including some code snippets below that you should find helpful
 
-# require 'scraperwiki'
-# require 'mechanize'
-#
-# agent = Mechanize.new
-#
-# # Read in a page
-# page = agent.get("http://foo.com")
-#
-# # Find somehing on the page using css selectors
-# p page.at('div.content')
-#
-# # Write out to the sqlite database using scraperwiki library
-# ScraperWiki.save_sqlite(["name"], {"name" => "susan", "occupation" => "software developer"})
-#
-# # An arbitrary query against the database
-# ScraperWiki.select("* from data where 'name'='peter'")
+require 'scraperwiki'
+require 'mechanize'
+require 'nokogiri'
+require 'active_support'
+require 'active_support/core_ext'
+require './outages'
 
-# You don't have to do things with the Mechanize or ScraperWiki libraries.
-# You can use whatever gems you want: https://morph.io/documentation/ruby
-# All that matters is that your final data is written to an SQLite database
-# called "data.sqlite" in the current working directory which has at least a table
-# called "data".
+Time.zone = 'Brisbane'
+
+URI_DEMAND = 'https://www.energex.com.au/static/Energex/Network%20Demand/networkdemand.txt'
+URI_OUTAGES = 'https://www.energex.com.au/power-outages/emergency-outages'
+
+outages_helper = Outages.new
+current_time = Time.zone.now
+
+# Get and save demand
+open(URI_DEMAND) do |i|
+  demand_page = i.read
+  demand_hash = outages_helper.get_demand(demand_page, current_time)
+  ScraperWiki.save_sqlite([:retrieved_at], demand_hash, 'demand')
+end
+
+
+# Get and save outages and summary info
+open(URI_OUTAGES) do |i|
+  outages_page = i.read
+
+  # get and save outages
+  outages = outages_helper.get_outages(outages_page)
+  outages.each do |outage|
+    ScraperWiki.save_sqlite([:retrieved_at], outage, 'data')
+  end
+
+  # get and save summary
+  summary = outages_helper.get_summary(outages_page, current_time)
+  ScraperWiki.save_sqlite([:retrieved_at], summary, 'summary')
+
+end
