@@ -8,7 +8,7 @@ require './outages'
 Time.zone = 'Brisbane'
 
 URI_DEMAND = 'https://www.energex.com.au/static/Energex/Network%20Demand/networkdemand.txt'
-URI_OUTAGES = 'https://www.energex.com.au/power-outages/emergency-outages'
+URI_OUTAGES = 'https://www.energex.com.au/home/power-outages/emergency-outages'
 
 outages_helper = Outages.new
 current_time = Time.zone.now
