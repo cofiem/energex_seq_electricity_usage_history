@@ -27,7 +27,7 @@ class Outages
       demand_rating = nil
     end
 
-    {demand: value, rating: demand_rating, retrieved_at: timestamp}
+    { demand: value, rating: demand_rating, retrieved_at: timestamp }
   end
 
   # Get outages from page
@@ -35,7 +35,7 @@ class Outages
   # @param [ActiveSupport:TimeWithZone] timestamp
   # @return [Hash]
   def get_outages(page)
-    outages_html = Nokogiri::HTML(page)
+    outages_html = Nokogiri::HTML(page.delete("\t\n\r"))
     outages_container = outages_html.css('div#unplanned-outages-wrapper')
     outages_table = outages_container.css('table#unplanned-outages-table tbody')
     outages_table_rows = outages_table.css('tr')
@@ -66,7 +66,6 @@ class Outages
           new_item[:retrieved_at] = Time.zone.parse(timestamp)
         end
 
-        new_item
         items.push(new_item) unless new_item.nil?
       end
     end
@@ -81,6 +80,7 @@ class Outages
   def get_summary(page, timestamp)
     outages_html = Nokogiri::HTML(page)
     summary_container = outages_html.css('div#unplanned-outages-wrapper')
+    summary_table_caption = summary_container.css('table#unplanned-outages-table caption')
 
     summary = {
         retrieved_at: nil,
@@ -88,12 +88,12 @@ class Outages
         total_cust: nil
     }
 
-    summary_info = summary_container.css('div#unplanned-outages p em').text
+    summary_info = summary_table_caption.text
     unless summary_info.empty?
-      summary_info_regexp = /Information updated: (\d+ [^ ]+ \d+ [^ ]+ [^ ]+)\. Total affected customers: (\d+)\./
+      summary_info_regexp = /.*Last updated: (.+)Total affected customers: (\d+).*/m
       summary_info_match = summary_info_regexp.match(summary_info)
-      raw_updated = summary_info_match.captures[0] + ' +1000'
-      raw_total_customers = summary_info_match.captures[1]
+      raw_updated = summary_info_match.captures[0].strip + ' +1000'
+      raw_total_customers = summary_info_match.captures[1].strip
 
       summary[:retrieved_at] = timestamp
       summary[:updated_at] = Time.zone.parse(raw_updated)
