@@ -214,38 +214,43 @@ class ElectricityOutages:
             'retrieved_at TEXT UNIQUE'
             ')')
 
-        # db_conn.execute(
-        #     'CREATE TABLE IF NOT EXISTS data '
-        #     '('
-        #     'id INTEGER PRIMARY KEY AUTOINCREMENT,'
-        #     'event_name, '
-        #     'council, '
-        #     'suburb, '
-        #     'post_code, '
-        #     'cust, '
-        #     'cause, '
-        #     'restore_at, '
-        #     'streets, '
-        #     'retrieved_at '
-        #     ')')
+        db_conn.execute(
+            'CREATE TABLE IF NOT EXISTS data '
+            '('
+            'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+            'event_name, '
+            'council, '
+            'suburb, '
+            'post_code, '
+            'cust, '
+            'cause, '
+            'restore_at, '
+            'streets, '
+            'retrieved_at '
+            ')')
 
-        with db_conn:
-            db_conn.execute(
-                'CREATE TEMPORARY TABLE data_temp(title, region, suburb, cust, cause, retrieved_at);')
-            db_conn.execute(
-                'INSERT INTO data_temp SELECT title, region, suburb, cust, cause, retrieved_at FROM data;')
-            db_conn.execute(
-                'DROP TABLE data;')
-            db_conn.execute(
-                'CREATE TABLE data(id INTEGER PRIMARY KEY AUTOINCREMENT,'
-                'event_name, council, suburb, post_code, cust, cause, restore_at, streets, retrieved_at);')
-            db_conn.execute(
-                'CREATE UNIQUE INDEX index_data ON data (event_name, council, suburb, cust, cause, restore_at, streets);')
-            db_conn.execute(
-                'INSERT INTO data SELECT NULL,NULL,region,suburb,NULL,cust,cause,NULL,NULL,retrieved_at '
-                'FROM data_temp;')
-            db_conn.execute(
-                'DROP TABLE data_temp;')
+        db_conn.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS index_data '
+            'ON data (event_name, council, suburb, cust, cause, restore_at, streets)')
+
+        # this was used to change the format of the 'data' table
+        # with db_conn:
+        #     db_conn.execute(
+        #         'CREATE TEMPORARY TABLE data_temp(title, region, suburb, cust, cause, retrieved_at);')
+        #     db_conn.execute(
+        #         'INSERT INTO data_temp SELECT title, region, suburb, cust, cause, retrieved_at FROM data;')
+        #     db_conn.execute(
+        #         'DROP TABLE data;')
+        #     db_conn.execute(
+        #         'CREATE TABLE data(id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        #         'event_name, council, suburb, post_code, cust, cause, restore_at, streets, retrieved_at);')
+        #     db_conn.execute(
+        #         'CREATE UNIQUE INDEX index_data ON data (event_name, council, suburb, cust, cause, restore_at, streets);')
+        #     db_conn.execute(
+        #         'INSERT INTO data SELECT NULL,NULL,region,suburb,NULL,cust,cause,NULL,NULL,retrieved_at '
+        #         'FROM data_temp;')
+        #     db_conn.execute(
+        #         'DROP TABLE data_temp;')
 
         db_conn.execute(
             'CREATE TABLE IF NOT EXISTS demand '
