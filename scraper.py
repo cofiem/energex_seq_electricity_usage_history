@@ -190,8 +190,11 @@ class ElectricityOutages:
             ')')
 
         db_conn.execute(
-            'CREATE UNIQUE INDEX IF NOT EXISTS data_retrieved_at '
-            'ON data (retrieved_at)')
+            'DROP INDEX IF EXISTS data_retrieved_at')
+
+        db_conn.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS data_region_suburb_retrieved_at '
+            'ON data (region, suburb, retrieved_at)')
 
         db_conn.execute(
             'CREATE TABLE IF NOT EXISTS demand '
