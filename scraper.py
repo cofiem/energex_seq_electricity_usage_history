@@ -30,7 +30,7 @@ class ElectricityOutages:
 
     cache_chars = string.digits + string.ascii_letters
     local_cache_dir = 'cache'
-    use_cache = False
+    use_cache = True
 
     def run(self):
         current_time = datetime.today()
@@ -76,37 +76,49 @@ class ElectricityOutages:
                     events = outage_suburb_page['data']
 
                     for event in events:
-                        # event_item = {
-                        #     'id': event['event'],
-                        #     'cause': event['cause'],
-                        #     'status': event['status'],
-                        #     'council': event['council'],
-                        #     'postcode': event['postcode'],
-                        #     'suburb': event['suburb'].title(),
-                        #     'cust': event['customersAffected'],
-                        #     'restore_time': event['restoreTime'],
-                        #     'streets': str.join(',', [s.title() for s in event['streets']]),
-                        # }
-
                         data.append({
-                            'title': event['council'],
-                            'region': event['council'],
+                            'event_name': event['event'].lower(),
+                            'council': event['council'].title(),
                             'suburb': event['suburb'].title(),
+                            'post_code': event['postcode'],
                             'cust': event['customersAffected'],
                             'cause': event['cause'],
+                            'restore_at': datetime.strptime(
+                                event['restoreTime'].replace(':', ''), '%Y-%m-%dT%H%M%S%z').strftime(
+                                self.iso_datetime_format),
+                            'streets': str.join(',', sorted(s.title() for s in event['streets'])),
                             'retrieved_at': current_time.strftime(self.iso_datetime_format),
                         })
 
+            print('')
+
             # insert data
+            print('Adding demand {} with rating {}'.format(demand['demand'], demand['rating']))
             self.sqlite_demand_row_insert(db_conn, demand)
+
+            print('Adding summary customers affected {} last updated {}'.format(
+                summary['total_cust'], summary['updated_at']))
             self.sqlite_summary_row_insert(db_conn, summary)
 
+            print('')
+            count_added = 0
+            count_skipped = 0
             for item in data:
-                self.sqlite_data_row_insert(db_conn, item)
+                row_exists = self.sqlite_data_row_exists(db_conn, item)
+                if row_exists:
+                    print('Already exists with same data {}: {}, {} - {} due to {}'.format(
+                        item['event_name'], item['council'], item['suburb'], item['cust'], item['cause']))
+                    count_skipped += 1
+                else:
+                    print('Adding outage {}: {}, {} - {} due to {}'.format(
+                        item['event_name'], item['council'], item['suburb'], item['cust'], item['cause']))
+                    self.sqlite_data_row_insert(db_conn, item)
+                    count_added += 1
 
+            print('')
             db_conn.commit()
 
-            print('Added demand, summary, and {} data item(s).'.format(len(data)))
+            print('Added {}, skipped {}, total {}'.format(count_added, count_skipped, count_added + count_skipped))
             print('Completed successfully.')
 
         finally:
@@ -161,13 +173,26 @@ class ElectricityOutages:
 
         return row_id
 
+    def sqlite_data_row_exists(self, db_conn, row: Dict[str, Any]) -> bool:
+        c = db_conn.execute(
+            'SELECT COUNT() FROM data WHERE event_name = ? AND council = ? AND suburb = ? '
+            'AND cust = ? AND cause = ?  AND restore_at = ? AND streets = ?',
+            (row['event_name'], row['council'], row['suburb'],
+             row['cust'], row['cause'], row['restore_at'], row['streets']))
+
+        row = list(c.fetchone())
+        match_count = int(row[0])
+
+        return match_count > 0
+
     def sqlite_data_row_insert(self, db_conn, row: Dict[str, Any]) -> int:
         c = db_conn.execute(
             'INSERT INTO data '
-            '(title, region, suburb, cust, cause, retrieved_at) '
-            'VALUES (?, ?, ?, ?, ?, ?)',
-            (row['title'], row['region'], row['suburb'], row['cust'],
-             row['cause'], row['retrieved_at'],))
+            '(event_name, council, suburb, post_code, cust, '
+            'cause, restore_at, streets, retrieved_at) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            (row['event_name'], row['council'], row['suburb'], row['post_code'], row['cust'],
+             row['cause'], row['restore_at'], row['streets'], row['retrieved_at'],))
 
         row_id = c.lastrowid
 
@@ -189,12 +214,38 @@ class ElectricityOutages:
             'retrieved_at TEXT UNIQUE'
             ')')
 
-        db_conn.execute(
-            'DROP INDEX IF EXISTS data_retrieved_at')
+        # db_conn.execute(
+        #     'CREATE TABLE IF NOT EXISTS data '
+        #     '('
+        #     'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        #     'event_name, '
+        #     'council, '
+        #     'suburb, '
+        #     'post_code, '
+        #     'cust, '
+        #     'cause, '
+        #     'restore_at, '
+        #     'streets, '
+        #     'retrieved_at '
+        #     ')')
 
-        db_conn.execute(
-            'CREATE UNIQUE INDEX IF NOT EXISTS data_region_suburb_retrieved_at '
-            'ON data (region, suburb, retrieved_at)')
+        with db_conn:
+            db_conn.execute(
+                'CREATE TEMPORARY TABLE data_temp(title, region, suburb, cust, cause, retrieved_at);')
+            db_conn.execute(
+                'INSERT INTO data_temp SELECT title, region, suburb, cust, cause, retrieved_at FROM data;')
+            db_conn.execute(
+                'DROP TABLE data;')
+            db_conn.execute(
+                'CREATE TABLE data(id INTEGER PRIMARY KEY AUTOINCREMENT,'
+                'event_name, council, suburb, post_code, cust, cause, restore_at, streets, retrieved_at);')
+            db_conn.execute(
+                'CREATE UNIQUE INDEX index_data ON data (event_name, council, suburb, cust, cause, restore_at, streets);')
+            db_conn.execute(
+                'INSERT INTO data SELECT NULL,NULL,region,suburb,NULL,cust,cause,NULL,NULL,retrieved_at '
+                'FROM data_temp;')
+            db_conn.execute(
+                'DROP TABLE data_temp;')
 
         db_conn.execute(
             'CREATE TABLE IF NOT EXISTS demand '
