@@ -206,17 +206,6 @@ class ElectricityOutages:
         db_conn.execute(
             'CREATE TABLE IF NOT EXISTS data '
             '('
-            'title TEXT, '
-            'region TEXT, '
-            'suburb TEXT, '
-            'cust TEXT, '
-            'cause TEXT, '
-            'retrieved_at TEXT UNIQUE'
-            ')')
-
-        db_conn.execute(
-            'CREATE TABLE IF NOT EXISTS data '
-            '('
             'id INTEGER PRIMARY KEY AUTOINCREMENT,'
             'event_name, '
             'council, '
