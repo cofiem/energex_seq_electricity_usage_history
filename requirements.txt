@@ -1,2 +1,2 @@
 # required python packages
-requests==2.22
+requests==2.25.1

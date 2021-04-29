@@ -11,7 +11,7 @@ import requests
 
 class ElectricityOutages:
     """
-    Gather the details of the petitions.
+    Gather the details of Energex outages.
     """
 
     usage_url = 'https://www.energex.com.au/static/Energex/Network%20Demand/networkdemand.txt'
